@@ -1,0 +1,71 @@
+trigger:
+- none
+
+variables:
+  # Import the shared variables
+- group: DeploymentVariableGroup
+- group: KeyVaultVariableGroup
+
+  # Build Image Variables
+- name: vmImageName
+  value: 'ubuntu-latest'
+
+  # Working Directories
+- name: terraformWorkDirectory
+  value: '$(System.DefaultWorkingDirectory)/templates/terraform/application'
+
+stages: 
+- stage: DeployApplicationStage
+  displayName: Deploy the application
+  jobs:
+  - job: DeployApplicationJob
+    displayName: Deploy the application
+
+    #pool: $(DevOpsAgentPoolName) #Uncomment this line and populate the variable to use a Self-Hosted Agent
+    pool:
+     vmimage: $(vmImageName)
+
+    variables:
+      # Substitution variables (some need to be renamed from their Variable Group names)
+      # Substitution variables are used to replace the blank values in the tfvars.json file.
+      # If a name matches the name of variables from one of the Variable Groups linked above, we don't need it here
+      # This section is for variables we need to rename to match the expected names in the tfvars.json file
+      ResourceGroupName: $(ApplicationResourceGroupName)
+
+    # First task, used to replace the values in the tfvars.json file
+    # It reads the values from variables that map to the content of the json file
+    steps:
+    - task: FileTransform@1
+      inputs:
+        folderPath: '$(terraformWorkDirectory)'
+        fileType: 'json'
+        targetFiles: 'terraform.tfvars.json'
+      displayName: "Update the tfvars file with the provided values"
+
+    # Now that we have the terraform.tfvars.json prepared, we will prepare Terraform itself
+    # The task below executes the 'Terraform init' command, and passes it the required information to initialise the backend (in the storage account)
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'init'
+        workingDirectory: $(terraformWorkDirectory)
+        backendServiceArm: $(ServiceConnectionName)
+        backendAzureRmResourceGroupName: $(DevOpsAgentResourceGroupName)
+        backendAzureRmStorageAccountName: $(DevOpsAgentTerraformStorageAccountName)
+        backendAzureRmContainerName: 'terraformstate'
+        backendAzureRmKey: 'application.tfstate'
+      env:
+        ARM_USE_AZUREAD: true
+      displayName: 'Terraform Init'
+      
+      #Execturion of the terraform (Terraform apply) 
+    - task: TerraformTaskV4@4
+      inputs:
+        provider: 'azurerm'
+        command: 'apply'
+        workingDirectory: $(terraformWorkDirectory)
+        environmentServiceNameAzureRM: $(ServiceConnectionName)
+      #To use Azure AD active for RBAC
+      env:
+        ARM_USE_AZUREAD: true
+      displayName: 'Terraform Validate & Apply'
