@@ -34,4 +34,9 @@ variable "PrivateEndpointSubnetName" {
     type        = string
 }
 
+variable "ContainerRegistryID" {
+    description = "Name of the subnet to attach the Key Vault"
+    type        = string
+}
+
 

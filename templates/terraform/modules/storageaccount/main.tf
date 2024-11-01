@@ -13,7 +13,7 @@ resource "azurerm_storage_account" "storageaccount" {
   account_tier             = "Standard"
   account_replication_type = "LRS"
 
-  public_network_access_enabled = false
+  # public_network_access_enabled = false //TODO: Uncomment later
 
   lifecycle {
     ignore_changes = [
@@ -48,19 +48,5 @@ resource "azurerm_private_endpoint" "fs_pe" {
       tags,
       private_dns_zone_group
     ]
-  }
-}
-
-resource "azurerm_linux_web_app" "example" {
-  name                = "example"
-  resource_group_name = azurerm_resource_group.example.name
-  location            = azurerm_service_plan.example.location
-  service_plan_id     = azurerm_service_plan.example.id
-
-  site_config {
-    application_stack {
-      docker_image_name = "appsvc/staticsite:latest"
-      docker_registry_url = "https://mcr.microsoft.com"
-    }
   }
 }
